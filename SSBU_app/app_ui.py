@@ -1,6 +1,5 @@
 from shiny import ui
 
-# CSS styles
 css = ui.tags.style("""
     table.dataframe {
         width: 100%;
@@ -17,12 +16,11 @@ css = ui.tags.style("""
     }
 """)
 
-# Main UI definition
 app_ui = ui.page_fluid(
     css,
     ui.layout_sidebar(
         ui.sidebar(
-            ui.panel_title("Biomedical Data Visualization and Analysis"),
+            ui.panel_title("SSBU"),
             ui.input_radio_buttons(
                 "page", "Menu",
                 choices=["Úvod", "Data"],
