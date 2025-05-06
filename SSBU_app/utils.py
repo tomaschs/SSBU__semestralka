@@ -74,3 +74,102 @@ def check_hardy_weinberg(df, column):
         result['error'] = chi_square_result['message']
 
     return result
+
+
+def analyze_genotype_distribution(df):
+    c282y_col = "HFE G845A (C282Y) [HFE]"
+    h63d_col = "HFE C187G (H63D) [HFE]"
+    s65c_col = "HFE A193T (S65C) [HFE]"
+
+    data = df.copy()
+    total_patients = len(data)
+
+    genotype_counts = {
+        "C282Y - normal": data[c282y_col].value_counts().get("normal", 0),
+        "C282Y - heterozygot": data[c282y_col].value_counts().get("heterozygot", 0),
+        "C282Y - mutant": data[c282y_col].value_counts().get("mutant", 0),
+        "H63D - normal": data[h63d_col].value_counts().get("normal", 0),
+        "H63D - heterozygot": data[h63d_col].value_counts().get("heterozygot", 0),
+        "H63D - mutant": data[h63d_col].value_counts().get("mutant", 0),
+        "S65C - normal": data[s65c_col].value_counts().get("normal", 0),
+        "S65C - heterozygot": data[s65c_col].value_counts().get("heterozygot", 0),
+        "S65C - mutant": data[s65c_col].value_counts().get("mutant", 0),
+    }
+
+    genotype_percentages_data = {
+        "Mutácia": ["C282Y", "H63D", "S65C"],
+        "Normal (%)": [
+            genotype_counts["C282Y - normal"] / total_patients * 100,
+            genotype_counts["H63D - normal"] / total_patients * 100,
+            genotype_counts["S65C - normal"] / total_patients * 100
+        ],
+        "Heterozygot (%)": [
+            genotype_counts["C282Y - heterozygot"] / total_patients * 100,
+            genotype_counts["H63D - heterozygot"] / total_patients * 100,
+            genotype_counts["S65C - heterozygot"] / total_patients * 100
+        ],
+        "Mutant (%)": [
+            genotype_counts["C282Y - mutant"] / total_patients * 100,
+            genotype_counts["H63D - mutant"] / total_patients * 100,
+            genotype_counts["S65C - mutant"] / total_patients * 100
+        ]
+    }
+
+    genotype_df = pd.DataFrame(genotype_percentages_data)
+
+    for col in ["Normal (%)", "Heterozygot (%)", "Mutant (%)"]:
+        genotype_df[col] = genotype_df[col].round(2)
+
+    compound_heterozygotes = data[(data[c282y_col] == "heterozygot") &
+                                  (data[h63d_col] == "heterozygot")].shape[0]
+
+    compound_c282y_s65c = data[(data[c282y_col] == "heterozygot") &
+                               (data[s65c_col] == "heterozygot")].shape[0]
+
+    c282y_homozygotes = data[data[c282y_col] == "mutant"].shape[0]
+    h63d_homozygotes = data[data[h63d_col] == "mutant"].shape[0]
+    s65c_homozygotes = data[data[s65c_col] == "mutant"].shape[0]
+
+    c282y_carriers = data[(data[c282y_col] == "heterozygot") &
+                          (data[h63d_col] != "heterozygot") &
+                          (data[s65c_col] != "heterozygot")].shape[0]
+
+    h63d_carriers = data[(data[h63d_col] == "heterozygot") &
+                         (data[c282y_col] != "heterozygot") &
+                         (data[s65c_col] != "heterozygot")].shape[0]
+
+    s65c_carriers = data[(data[s65c_col] == "heterozygot") &
+                         (data[c282y_col] != "heterozygot") &
+                         (data[h63d_col] != "heterozygot")].shape[0]
+
+    total_carriers = c282y_carriers + h63d_carriers + s65c_carriers
+    total_at_risk = c282y_homozygotes + h63d_homozygotes + compound_heterozygotes + compound_c282y_s65c
+
+    risk_data = {
+        "Kategória": ["C282Y homozygot", "H63D homozygot", "S65C homozygot",
+                      "C282Y/H63D zložený heterozygot", "C282Y/S65C zložený heterozygot",
+                      "Prenášači", "Bez rizika"],
+        "Počet": [c282y_homozygotes, h63d_homozygotes, s65c_homozygotes,
+                  compound_heterozygotes, compound_c282y_s65c, total_carriers,
+                  total_patients - total_carriers - total_at_risk],
+        "Percento (%)": [
+            c282y_homozygotes / total_patients * 100,
+            h63d_homozygotes / total_patients * 100,
+            s65c_homozygotes / total_patients * 100,
+            compound_heterozygotes / total_patients * 100,
+            compound_c282y_s65c / total_patients * 100,
+            total_carriers / total_patients * 100,
+            (total_patients - total_carriers - total_at_risk) / total_patients * 100
+        ],
+        "Riziko": ["Vysoké", "Stredné", "Nízke", "Stredné", "Stredné", "Nízke", "Žiadne"]
+    }
+
+    risk_df = pd.DataFrame(risk_data)
+    risk_df["Percento (%)"] = risk_df["Percento (%)"].round(2)
+
+    return {
+        "genotype_percentages": genotype_df,
+        "risk_percentages": risk_df,
+        "carriers_count": total_carriers,
+        "at_risk_count": total_at_risk
+    }
