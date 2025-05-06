@@ -23,7 +23,7 @@ app_ui = ui.page_fluid(
             ui.panel_title("SSBU"),
             ui.input_radio_buttons(
                 "page", "Menu",
-                choices=["Úvod", "Data"],
+                choices=["Úvod", "Data", "Hardy-Weinberg"],
                 selected="Úvod"
             ),
             ui.output_ui("dynamic_content")
