@@ -34,12 +34,44 @@ def server(input, output, session):
     def hw_table():
         results = {
             "Mutácia": [],
-            "p-hodnota": []
+            "p-hodnota": [],
+            "Frekvencia alely p": [],
+            "Frekvencia alely q": [],
+            "Pozorované normálne": [],
+            "Pozorované heterozygot": [],
+            "Pozorované mutant": [],
+            "Očakávané normálne": [],
+            "Očakávané heterozygot": [],
+            "Očakávané mutant": []
         }
+
         for column in ["HFE C187G (H63D) [HFE]", "HFE A193T (S65C) [HFE]", "HFE G845A (C282Y) [HFE]"]:
-            p_value = check_hardy_weinberg(df, column)
+            hw_result = check_hardy_weinberg(df, column)
+
             results["Mutácia"].append(column)
-            results["p-hodnota"].append(p_value if p_value is not None else "N/A")
+
+            if hw_result is None:
+                results["p-hodnota"].append("N/A")
+                results["Frekvencia alely p"].append("N/A")
+                results["Frekvencia alely q"].append("N/A")
+                for key in ["Pozorované normálne", "Pozorované heterozygot", "Pozorované mutant",
+                            "Očakávané normálne", "Očakávané heterozygot", "Očakávané mutant"]:
+                    results[key].append("N/A")
+            else:
+                results["p-hodnota"].append(
+                    round(hw_result["p_value"], 4) if hw_result["p_value"] is not None else "N/A")
+                results["Frekvencia alely p"].append(round(hw_result["allele_p"], 4))
+                results["Frekvencia alely q"].append(round(hw_result["allele_q"], 4))
+
+                results["Pozorované normálne"].append(hw_result["observed"]["normal"])
+                results["Pozorované heterozygot"].append(hw_result["observed"]["heterozygot"])
+                results["Pozorované mutant"].append(hw_result["observed"]["mutant"])
+
+                results["Očakávané normálne"].append(round(hw_result["expected"]["normal"], 2))
+                results["Očakávané heterozygot"].append(round(hw_result["expected"]["heterozygot"], 2))
+                results["Očakávané mutant"].append(round(hw_result["expected"]["mutant"], 2))
+
         return pd.DataFrame(results)
+
 
 app = App(app_ui, server)

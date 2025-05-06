@@ -14,6 +14,30 @@ def get_genotype_counts(df, column):
     return n_normal, n_heterozygot, n_mutant, total
 
 
+def perform_chi_square_test(observed, expected):
+    # if min(expected) < 5:
+    #     return {
+    #         'chi2': None,
+    #         'p_value': None,
+    #         'df': None,
+    #         'is_valid': False,
+    #         'message': 'Expected counts too small for chi-square test (minimum count should be ≥ 5)'
+    #     }
+
+    chi2, p_value, dof, _ = chi2_contingency([observed, expected], correction=False)
+
+    is_in_equilibrium = p_value > 0.05
+
+    return {
+        'chi2': chi2,
+        'p_value': p_value,
+        'df': dof,
+        'is_valid': True,
+        'is_in_equilibrium': is_in_equilibrium,
+        'message': 'V Hardy-Weinbergovej rovnováhe' if is_in_equilibrium else 'Nie je v Hardy-Weinbergovej rovnováhe'
+    }
+
+
 def check_hardy_weinberg(df, column):
     n_normal, n_heterozygot, n_mutant, total = get_genotype_counts(df, column)
 
@@ -33,23 +57,20 @@ def check_hardy_weinberg(df, column):
     observed = [n_normal, n_heterozygot, n_mutant]
     expected_values = [expected['normal'], expected['heterozygot'], expected['mutant']]
 
-    if min(expected_values) < 5:
-        return {
-            'p_value': None,
-            'allele_p': p,
-            'allele_q': q,
-            'observed': dict(zip(['normal', 'heterozygot', 'mutant'], observed)),
-            'expected': expected,
-            'error': 'Expected counts too small for chi-square test'
-        }
+    chi_square_result = perform_chi_square_test(observed, expected_values)
 
-    # chi-kvadrat test
-    chi2, p_value, _, _ = chi2_contingency([observed, expected_values], correction=False)
-
-    return {
-        'p_value': p_value,
+    result = {
         'allele_p': p,
         'allele_q': q,
         'observed': dict(zip(['normal', 'heterozygot', 'mutant'], observed)),
-        'expected': expected
+        'expected': expected,
+        'chi_square': chi_square_result
     }
+
+    if chi_square_result['is_valid']:
+        result['p_value'] = chi_square_result['p_value']
+    else:
+        result['p_value'] = None
+        result['error'] = chi_square_result['message']
+
+    return result
