@@ -14,14 +14,14 @@ def get_genotype_counts(df, column):
     return n_normal, n_heterozygot, n_mutant, total
 
 
-def perform_chi_square_test(observed, expected):
+def chi_square_test(observed, expected):
     # if min(expected) < 5:
     #     return {
     #         'chi2': None,
     #         'p_value': None,
     #         'df': None,
     #         'is_valid': False,
-    #         'message': 'Expected counts too small for chi-square test (minimum count should be ≥ 5)'
+    #         'message': 'Očakávané hodnoty sú príliš nízke'
     #     }
 
     chi2, p_value, dof, _ = chi2_contingency([observed, expected], correction=False)
@@ -56,7 +56,7 @@ def check_hardy_weinberg(df, column):
     observed = [n_normal, n_heterozygot, n_mutant]
     expected_values = [expected['normal'], expected['heterozygot'], expected['mutant']]
 
-    chi_square_result = perform_chi_square_test(observed, expected_values)
+    chi_square_result = chi_square_test(observed, expected_values)
 
     result = {
         'allele_p': p,
