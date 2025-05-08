@@ -27,7 +27,7 @@ def server(input, output, session):
                 ui.output_table("genotype_distribution_table"),
                 ui.h3("Predispozícia k hereditárnej hemochromatóze"),
                 ui.output_table("hemochromatosis_risk_table"),
-                ui.h3("Počet pacientov podľa rizika"),
+                ui.h3("Počet pacientov podľa predispozície"),
                 ui.output_text("patient_counts")
             )
         else:
