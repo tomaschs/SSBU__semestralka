@@ -1,79 +1,83 @@
 import pandas as pd
-from scipy.stats import chi2_contingency
 import numpy as np
-
+from scipy.stats import chi2
 
 def get_genotype_counts(df, column):
     counts = df[column].value_counts()
-    n_normal = counts.get('normal', 0)              # dominantny homozygot p^2
-    n_heterozygot = counts.get('heterozygot', 0)    # heterozygot 2pq
-    n_mutant = counts.get('mutant', 0)              # recesivny homozygot q^2
-
+    n_normal = counts.get('normal', 0)
+    n_heterozygot = counts.get('heterozygot', 0)
+    n_mutant = counts.get('mutant', 0)
     total = n_normal + n_heterozygot + n_mutant
-
     return n_normal, n_heterozygot, n_mutant, total
 
-
 def chi_square_test(observed, expected):
-    # if min(expected) < 5:
-    #     return {
-    #         'chi2': None,
-    #         'p_value': None,
-    #         'df': None,
-    #         'is_valid': False,
-    #         'message': 'Očakávané hodnoty sú príliš nízke'
-    #     }
+    observed = np.array(observed)
+    expected = np.array(expected)
 
-    chi2, p_value, dof, _ = chi2_contingency([observed, expected], correction=False)
+    valid_indices = expected > 0
+    observed_valid = observed[valid_indices]
+    expected_valid = expected[valid_indices]
 
-    is_in_equilibrium = p_value > 0.05
+    num_valid_categories = len(observed_valid)
 
-    return {
-        'chi2': chi2,
-        'p_value': p_value,
-        'df': dof,
-        'is_valid': True,
-        'message': 'V Hardy-Weinbergovej rovnováhe' if is_in_equilibrium else 'Nie je v Hardy-Weinbergovej rovnováhe'
-    }
+    if num_valid_categories < 2:
+        return 0, 1, 0 # Chi2 = 0, p=1, df=0 if less than 2 valid categories
+
+    chi2_statistic = np.sum((observed_valid - expected_valid)**2 / expected_valid)
+    degrees_of_freedom = 1 # Pre HWE s dvoma alelami sú vždy 1 stupeň voľnosti
+
+    p_value = chi2.sf(chi2_statistic, degrees_of_freedom)
+
+    print(f"Calculated Chi-squared statistic: {chi2_statistic}")
+    print(f"Calculated Degrees of Freedom: {degrees_of_freedom}")
+    print(f"Calculated p-value: {p_value}")
+
+    return chi2_statistic, p_value, degrees_of_freedom
 
 
 def check_hardy_weinberg(df, column):
-    n_normal, n_heterozygot, n_mutant, total = get_genotype_counts(df, column)
+    counts = df[column].value_counts()
+    print(f"Value counts for column '{column}':\n{counts}")
+    n_normal = counts.get('normal', 0)
+    n_heterozygot = counts.get('heterozygot', 0)
+    n_mutant = counts.get('mutant', 0)
+    total = n_normal + n_heterozygot + n_mutant
+    observed_counts = [n_normal, n_heterozygot, n_mutant]
+    non_zero_observed = sum(1 for count in observed_counts if count > 0)
 
-    if n_normal + n_heterozygot + n_mutant < 2 or total == 0:
+    print(f"n_normal: {n_normal}, n_heterozygot: {n_heterozygot}, n_mutant: {n_mutant}, total: {total}")
+    print(f"Number of non-zero observed genotypes: {non_zero_observed}")
+
+    if total < 2 or non_zero_observed < 2:
+        print(f"Insufficient data for Hardy-Weinberg test for column '{column}'. Returning None.")
         return None
 
-    # p + q = 1
     p = (2 * n_normal + n_heterozygot) / (2 * total)
     q = 1 - p
+    print(f"Allele frequencies for column '{column}': p = {p:.4f}, q = {q:.4f}")
 
     expected = {
-        'normal': (p ** 2) * total,  # p^2
-        'heterozygot': 2 * p * q * total,  # 2pq
-        'mutant': (q ** 2) * total  # q^2
+        'normal': (p ** 2) * total,
+        'heterozygot': 2 * p * q * total,
+        'mutant': (q ** 2) * total
     }
+    expected_counts = [expected['normal'], expected['heterozygot'], expected['mutant']]
+    non_zero_expected = sum(1 for count in expected_counts if count > 0)
+    print(f"Expected genotype counts for column '{column}': {expected}")
+    print(f"Number of non-zero expected genotypes: {non_zero_expected}")
 
-    observed = [n_normal, n_heterozygot, n_mutant]
-    expected_values = [expected['normal'], expected['heterozygot'], expected['mutant']]
+    chi2_statistic, p_value, df_returned = chi_square_test(observed_counts, expected_counts)
+    print(f"DOF returned from chi_square_test for column '{column}': {df_returned}")
 
-    chi_square_result = chi_square_test(observed, expected_values)
-
-    result = {
+    return {
         'allele_p': p,
         'allele_q': q,
-        'observed': dict(zip(['normal', 'heterozygot', 'mutant'], observed)),
+        'observed': dict(zip(['normal', 'heterozygot', 'mutant'], observed_counts)),
         'expected': expected,
-        'chi_square': chi_square_result
+        'chi2': chi2_statistic,
+        'p_value': p_value,
+        'df': df_returned
     }
-
-    if chi_square_result['is_valid']:
-        result['p_value'] = chi_square_result['p_value']
-    else:
-        result['p_value'] = None
-        result['error'] = chi_square_result['message']
-
-    return result
-
 
 def analyze_genotype_distribution(df):
     c282y_col = "HFE G845A (C282Y) [HFE]"
@@ -106,27 +110,26 @@ def analyze_genotype_distribution(df):
     }
 
     genotype_df = pd.DataFrame(genotype_percentages_data)
-
     for col in ["Normal (%)", "Heterozygot (%)", "Mutant (%)"]:
         genotype_df[col] = genotype_df[col].round(2)
 
     compound_heterozygotes = data[(data[c282y_col] == "heterozygot") &
-                                  (data[h63d_col] == "heterozygot")].shape[0]
+                                    (data[h63d_col] == "heterozygot")].shape[0]
 
     compound_c282y_s65c = data[(data[c282y_col] == "heterozygot") &
-                               (data[s65c_col] == "heterozygot")].shape[0]
+                                 (data[s65c_col] == "heterozygot")].shape[0]
 
     c282y_carriers = data[(data[c282y_col] == "heterozygot") &
-                          (data[h63d_col] != "heterozygot") &
-                          (data[s65c_col] != "heterozygot")].shape[0]
+                            (data[h63d_col] != "heterozygot") &
+                            (data[s65c_col] != "heterozygot")].shape[0]
 
     h63d_carriers = data[(data[h63d_col] == "heterozygot") &
-                         (data[c282y_col] != "heterozygot") &
-                         (data[s65c_col] != "heterozygot")].shape[0]
+                           (data[c282y_col] != "heterozygot") &
+                           (data[s65c_col] != "heterozygot")].shape[0]
 
     s65c_carriers = data[(data[s65c_col] == "heterozygot") &
-                         (data[c282y_col] != "heterozygot") &
-                         (data[h63d_col] != "heterozygot")].shape[0]
+                           (data[c282y_col] != "heterozygot") &
+                           (data[h63d_col] != "heterozygot")].shape[0]
 
     total_carriers = c282y_carriers + h63d_carriers + s65c_carriers
     total_at_risk = n_mutant_c282y + n_mutant_h63d + compound_heterozygotes + compound_c282y_s65c

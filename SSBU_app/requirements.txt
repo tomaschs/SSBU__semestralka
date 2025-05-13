@@ -1,3 +1,5 @@
 shiny
 seaborn
 pandas
+scipy
+Jinja2
