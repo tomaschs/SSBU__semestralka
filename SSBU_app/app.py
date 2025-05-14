@@ -1,10 +1,19 @@
-from shiny import App, render, ui
-from shared import df
-from app_ui import app_ui  # Budeme musieť doplniť novú položku v UI
-from utils import check_hardy_weinberg, analyze_genotype_distribution, analyzuj_diagnozy, prirad_kapitolu_mkch10 # Importujeme nové funkcie
+from shiny import App, render, ui, reactive
+from shiny.ui import tags
 import pandas as pd
+from shared import df, mkch10_file_path, nazvy_harkov_mkch10
+from app_ui import app_ui
+from utils import check_hardy_weinberg, analyze_genotype_distribution, analyzuj_diagnozy, prirad_kapitolu_mkch10, nacitaj_mkch10_ciselnik
+
+# Načítame číselník pri spustení aplikácie
+mkch10_data = nacitaj_mkch10_ciselnik(str(mkch10_file_path), nazvy_harkov_mkch10)
 
 def server(input, output, session):
+    sheet_names = reactive.Value(list(mkch10_data.keys()) if mkch10_data else [])
+    current_sheet_index = reactive.Value(0)
+    filtered_mkch10_data = reactive.Value(None) # Bude obsahovať filtrovaný DataFrame
+    search_performed = reactive.Value(False)
+
     @output
     @render.ui
     def page_ui():
@@ -53,16 +62,104 @@ def server(input, output, session):
                 ui.output_table("predisposition_summary_table")
             )
         elif input.page() == "Analýza diagnóz":
-            vyskyt = analyzuj_diagnozy(df, "diagnoza MKCH-10", "validovany vysledok") # Používame skutočné názvy stĺpcov
+            vyskyt = analyzuj_diagnozy(df, "diagnoza MKCH-10", "validovany vysledok")
             return ui.TagList(
                 ui.h2("Analýza diagnóz podľa MKCH-10"),
-                ui.output_table("vyskyt_diagnoz_table")
+                ui.output_table("vyskyt_diagnoz_table"),
+            )
+        elif input.page() == "MKCH-10":
+            if not mkch10_data:
+                return ui.p("Číselník MKCH-10 nebol načítaný.")
+
+            names = sheet_names()
+            current_index = current_sheet_index()
+
+            return ui.TagList(
+                ui.h2("MKCH-10 Číselník"),
+                ui.input_text("mkch10_hladaj", "Hľadať v kóde alebo názve:"),
+                ui.input_action_button("mkch10_hladaj_button", "Hľadať"),
+                ui.div(names[current_index], style="font-size: 1.5em; font-weight: bold; margin-bottom: 10px;"),
+                ui.output_ui("mkch10_current_table"),
+                ui.div(
+                    ui.input_action_button("prev_sheet", "Predchádzajúci"),
+                    ui.span(" "),
+                    ui.input_action_button("next_sheet", "Nasledujúci")
+                )
             )
         else:
             return ui.TagList(
                 ui.h2("Očistený dataset"),
                 ui.output_table("data_table")
             )
+
+    @reactive.Effect
+    @reactive.event(input.mkch10_hladaj_button)
+    def _perform_search():
+        hladany_vyraz = input.mkch10_hladaj()
+        if mkch10_data:
+            temp_filtered_data = {}
+            sheet_names_list = list(mkch10_data.keys())
+            for i, sheet_name in enumerate(sheet_names_list):
+                if i == 0:
+                    continue
+
+                df = mkch10_data[sheet_name]
+                kod_col = 'Kód diagnózy' if 'Kód diagnózy' in df.columns else 'Kód' if 'Kód' in df.columns else None
+                nazov_col = 'Nazov' if 'Nazov' in df.columns else 'Názov' if 'Názov' in df.columns else None
+
+                if kod_col and nazov_col:
+                    filtered_df = df[
+                        df[kod_col].str.contains(hladany_vyraz, case=False, na=False) |
+                        df[nazov_col].str.contains(hladany_vyraz, case=False, na=False)
+                    ].fillna('')
+                    temp_filtered_data[sheet_name] = filtered_df
+                else:
+                    temp_filtered_data[sheet_name] = pd.DataFrame() # Ak stĺpce nenájdené, prázdny DataFrame
+            filtered_mkch10_data.set(temp_filtered_data)
+            search_performed.set(True)
+        else:
+            filtered_mkch10_data.set(None)
+            search_performed.set(False)
+
+    @output
+    @render.ui
+    def mkch10_current_table():
+        current_index = current_sheet_index()
+        current_sheet_name = sheet_names()[current_index]
+        data_to_render = mkch10_data.get(current_sheet_name)
+
+        if search_performed.get() and filtered_mkch10_data.get() is not None:
+            data_to_render = filtered_mkch10_data.get().get(current_sheet_name, pd.DataFrame())
+
+        if data_to_render is not None:
+            def format_row(row):
+                podfarbit = False
+                kod_col_name = 'Kód' if 'Kód' in data_to_render.columns else 'Kód diagnózy' if 'Kód diagnózy' in data_to_render.columns else None
+                if kod_col_name and '-' in str(row[kod_col_name]):
+                    podfarbit = True
+                cells = [tags.td(value) for value in row.values.astype(str)]
+                if podfarbit:
+                    return tags.tr(style="background-color: #F0F0F0;", *cells)
+                else:
+                    return tags.tr(*cells)
+
+            table_header = tags.thead(tags.tr(*[tags.th(col, style="background-color: #F0F8FF;") for col in data_to_render.columns]))
+            table_body = tags.tbody(*[format_row(row) for index, row in data_to_render.iterrows()])
+            return tags.table(table_header, table_body, class_="dataframe")
+        else:
+            return ui.div("Dáta MKCH-10 neboli načítané.")
+
+    @reactive.Effect
+    @reactive.event(input.prev_sheet)
+    def _prev_sheet():
+        search_performed.set(False) # Reset vyhľadávanie pri zmene hárku
+        current_sheet_index.set(max(0, current_sheet_index() - 1))
+
+    @reactive.Effect
+    @reactive.event(input.next_sheet)
+    def _next_sheet():
+        search_performed.set(False) # Reset vyhľadávanie pri zmene hárku
+        current_sheet_index.set(min(len(sheet_names()) - 1, current_sheet_index() + 1))
 
     @output
     @render.table

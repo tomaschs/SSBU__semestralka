@@ -12,7 +12,22 @@ css = ui.tags.style("""
         padding: 8px;
     }
     table.dataframe th {
-        background-color: #f2f2f2;
+        background-color: aliceblue;
+    }
+    #mkch10_hladaj_button, #mkch10_zrusit_filter {
+        padding: 5px 10px; /* Zmenšenie vnútorného priestoru */
+        font-size: 0.8em; /* Zmenšenie písma */
+    }
+    .horizontal-layout {
+        display: flex;
+        flex-direction: row;
+        align-items: center; /* Voliteľné: zarovnanie prvkov vertikálne na stred */
+    }
+    .horizontal-layout > * {
+        margin-right: 5px; /* Voliteľné: pridanie medzier medzi prvkami */
+    }
+    .horizontal-layout > *:last-child {
+        margin-right: 0; /* Odstránenie medzery za posledným prvkom */
     }
 """)
 
@@ -23,7 +38,7 @@ app_ui = ui.page_fluid(
             ui.panel_title("SSBU"),
             ui.input_radio_buttons(
                 "page", "Menu",
-                choices=["Úvod", "Data", "Hardy-Weinberg", "Genotypy a predispozície"],
+                choices=["Úvod", "Data", "Hardy-Weinberg", "Genotypy a predispozície", "Analýza diagnóz", "MKCH-10"], # Pridali sme "Analýza diagnóz"
                 selected="Úvod"
             ),
             ui.output_ui("dynamic_content")

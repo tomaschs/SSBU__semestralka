@@ -3,3 +3,4 @@ seaborn
 pandas
 scipy
 Jinja2
+xlrd

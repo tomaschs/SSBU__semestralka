@@ -1,6 +1,9 @@
 import pandas as pd
 import numpy as np
 from scipy.stats import chi2
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 def get_genotype_counts(df, column):
     counts = df[column].value_counts()
@@ -254,3 +257,17 @@ def analyzuj_diagnozy(df, stlpec_mkch, stlpec_datum):
     df_analyza['Kapitola_MKCH10'] = df_analyza[stlpec_mkch].apply(prirad_kapitolu_mkch10)
     vyskyt_diagnoz = df_analyza.groupby(['Rok_vyšetrenia', 'Kapitola_MKCH10']).size().reset_index(name='Počet')
     return vyskyt_diagnoz
+
+def nacitaj_mkch10_ciselnik(cesta_k_suboru, nazvy_harkov):
+    try:
+        all_sheets_dict = pd.read_excel(cesta_k_suboru, sheet_name=None) # Načíta všetky hárky
+        logging.info(f"Úspešne načítaných {len(all_sheets_dict)} hárkov z číselníka MKCH-10.")
+        return all_sheets_dict
+    except FileNotFoundError:
+        logging.error(f"Súbor '{cesta_k_suboru}' nebol nájdený.")
+        return None
+    except Exception as e:
+        logging.error(f"Chyba pri načítaní číselníka MKCH-10: {e}")
+        return None
+    
+
