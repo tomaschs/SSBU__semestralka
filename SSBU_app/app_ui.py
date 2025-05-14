@@ -14,20 +14,52 @@ css = ui.tags.style("""
     table.dataframe th {
         background-color: aliceblue;
     }
-    #mkch10_hladaj_button, #mkch10_zrusit_filter {
-        padding: 5px 10px; /* Zmenšenie vnútorného priestoru */
-        font-size: 0.8em; /* Zmenšenie písma */
+    #mkch10_hladaj {
+        height: 30px;
+        padding: 5px;
+        font-size: 0.9em;
+        margin-bottom: 5px;
+    }
+    .horizontal-buttons { /* Nový štýl pre tlačidlá vedľa seba */
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+    }
+    .horizontal-buttons > * {
+        margin-right: 5px;
+    }
+    .horizontal-buttons > *:last-child {
+        margin-right: 0;
+    }
+    #mkch10_hladaj_button, #mkch10_reset_search {
+        padding: 5px 10px;
+        font-size: 0.8em;
+        height: 30px;
     }
     .horizontal-layout {
         display: flex;
         flex-direction: row;
-        align-items: center; /* Voliteľné: zarovnanie prvkov vertikálne na stred */
+        align-items: start;
+        justify-content: space-between;
+        margin-bottom: 10px;
     }
-    .horizontal-layout > * {
-        margin-right: 5px; /* Voliteľné: pridanie medzier medzi prvkami */
+    .vertical-layout {
+        display: flex;
+        flex-direction: column;
+        align-items: start;
     }
-    .horizontal-layout > *:last-child {
-        margin-right: 0; /* Odstránenie medzery za posledným prvkom */
+    .vertical-layout > * {
+        margin-bottom: 5px;
+    }
+    .action-button-sm {
+        padding: 5px 10px;
+        font-size: 0.8em;
+    }
+    .action-button-nav {
+        padding: 5px 10px;
+        font-size: 0.9em;
+        margin-bottom: 5px;
+        cursor: pointer;
     }
 """)
 
