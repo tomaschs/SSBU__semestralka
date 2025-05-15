@@ -334,7 +334,7 @@ def server(input, output, session):
                  "Populácia je v Hardy-Weinbergovej rovnováhe (očakávané frekvencie genotypov zodpovedajú pozorovaným)."
                  if r and r.get("chi2_results") is not None and r.get("chi2_results").get("p_value") is not None and r["chi2_results"]["p_value"] > 0.05
                  else (
-                     "Populácia nie je v Hardy-Weinbergovej rovnováhe (pozorované frekvencie genotypov sa významne líšia od očakávaných), čo môže naznačovať vplyv evolučných síl alebo iných faktorov."
+                     "Populácia nie je v Hardy-Weinbergovej rovnováhe (pozorované frekvencie genotypov sa významne líšia od očakávaných)."
                      if r and r.get("chi2_results") is not None and r.get("chi2_results").get("p_value") is not None
                      else "N/A"
                  )
