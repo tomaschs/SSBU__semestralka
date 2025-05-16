@@ -143,18 +143,18 @@ def analyze_genotype_distribution(df):
         genotype_df[col] = genotype_df[col].round(2)
 
     compound_heterozygotes = data[(data[c282y_col] == "heterozygot") &
-                                    (data[h63d_col] == "heterozygot")].shape[0]
+                                  (data[h63d_col] == "heterozygot")].shape[0]
 
     compound_c282y_s65c = data[(data[c282y_col] == "heterozygot") &
                                      (data[s65c_col] == "heterozygot")].shape[0]
 
     c282y_carriers = data[(data[c282y_col] == "heterozygot") &
-                                (data[h63d_col] != "heterozygot") &
+                          (data[h63d_col] != "heterozygot") &
                                 (data[s65c_col] != "heterozygot")].shape[0]
 
     h63d_carriers = data[(data[h63d_col] == "heterozygot") &
                                (data[c282y_col] != "heterozygot") &
-                               (data[s65c_col] != "heterozygot")].shape[0]
+                                (data[s65c_col] != "heterozygot")].shape[0]
 
     s65c_carriers = data[(data[s65c_col] == "heterozygot") &
                                (data[c282y_col] != "heterozygot") &
@@ -162,7 +162,8 @@ def analyze_genotype_distribution(df):
 
     total_carriers = c282y_carriers + h63d_carriers + s65c_carriers
     total_at_risk = n_mutant_c282y + n_mutant_h63d + compound_heterozygotes + compound_c282y_s65c
-
+    total_non_affected = total_patients - total_carriers - total_at_risk  # Calculate non-affected
+    
     risk_data = {
         "Kategória": ["C282Y homozygot", "H63D homozygot", "S65C homozygot",
                       "C282Y/H63D zložený heterozygot", "C282Y/S65C zložený heterozygot"],
@@ -178,10 +179,11 @@ def analyze_genotype_distribution(df):
     risk_df["Percento (%)"] = risk_df["Percento (%)"].round(2)
 
     predisposition_data = {
-        "Skupina": ["Prenášači", "Genetická predispozícia", "Celkový počet pacientov"],
-        "Počet": [total_carriers, total_at_risk, total_patients],
+        "Skupina": ["Prenášači", "Genetická predispozícia", "Nepostihnutí", "Celkový počet pacientov"], # Add "Nepostihnutí"
+        "Počet": [total_carriers, total_at_risk, total_non_affected, total_patients], # Add total_non_affected
         "Percento (%)": [round(total_carriers / total_patients * 100, 2),
                          round(total_at_risk / total_patients * 100, 2),
+                         round(total_non_affected / total_patients * 100, 2), # Calculate non-affected %
                          100.00]
     }
     predisposition_df = pd.DataFrame(predisposition_data)
@@ -192,71 +194,75 @@ def analyze_genotype_distribution(df):
         "predisposition_table": predisposition_df
     }
 
-def prirad_kapitolu_mkch10(kod):
+def prirad_kapitolu_mkch10(kod, mkch10_data):
+    """
+    Priradí ku kódu MKCH-10 názov kategórie/podkategórie na základe dát z Excelu.
+
+    Args:
+        kod (str): Kód diagnózy MKCH-10.
+        mkch10_data (dict):  Slovník, kde kľúče sú názvy hárkov Excelu
+                             a hodnoty sú DataFrame s dátami MKCH-10.
+
+    Returns:
+        str: Názov kategórie/podkategórie alebo "Neznáma" ak sa kód nenájde.
+    """
     if pd.isna(kod):
         return "Neznáma"
     kod = kod.strip().upper()
-    if len(kod) >= 3 and kod[0].isalpha():
-        prve_pismeno = kod[0]
-        zvysok = kod[1:]
-        try:
-            cislo = int(zvysok[:2]) if len(zvysok) >= 2 and zvysok[:2].isdigit() else -1
-        except ValueError:
-            cislo = -1
 
-        if prve_pismeno == 'A' and 0 <= cislo <= 99:
-            return "Infekčné a parazitárne choroby (A00-B99)"
-        elif prve_pismeno == 'C' and 0 <= cislo <= 97 or prve_pismeno == 'D' and 0 <= cislo <= 48:
-            return "Nádory (C00-D48)"
-        elif prve_pismeno == 'D' and 50 <= cislo <= 89:
-            return "Choroby krvi a krvotvorných orgánov a niektoré poruchy imunity (D50-D89)"
-        elif prve_pismeno == 'E' and 0 <= cislo <= 90:
-            return "Endokrinné, nutričné a metabolické choroby (E00-E90)"
-        elif prve_pismeno == 'F' and 0 <= cislo <= 99:
-            return "Duševné poruchy a poruchy správania (F00-F99)"
-        elif prve_pismeno == 'G' and 0 <= cislo <= 99:
-            return "Choroby nervovej sústavy (G00-G99)"
-        elif prve_pismeno == 'H' and 0 <= cislo <= 59:
-            return "Choroby oka a adnexov (H00-H59)"
-        elif prve_pismeno == 'H' and 60 <= cislo <= 95:
-            return "Choroby ucha a mastoidného výbežku (H60-H95)"
-        elif prve_pismeno == 'I' and 0 <= cislo <= 99:
-            return "Choroby obehovej sústavy (I00-I99)"
-        elif prve_pismeno == 'J' and 0 <= cislo <= 99:
-            return "Choroby dýchacej sústavy (J00-J99)"
-        elif prve_pismeno == 'K' and 0 <= cislo <= 93:
-            return "Choroby tráviacej sústavy (K00-K93)"
-        elif prve_pismeno == 'L' and 0 <= cislo <= 99:
-            return "Choroby kože a podkožného tkaniva (L00-L99)"
-        elif prve_pismeno == 'M' and 0 <= cislo <= 99:
-            return "Choroby svalovej a kostrovej sústavy a spojivového tkaniva (M00-M99)"
-        elif prve_pismeno == 'N' and 0 <= cislo <= 99:
-            return "Choroby močovej a pohlavnej sústavy (N00-N99)"
-        elif prve_pismeno == 'O' and 0 <= cislo <= 99:
-            return "Tehotenstvo, pôrod a popôrodie (O00-O99)"
-        elif prve_pismeno == 'P' and 0 <= cislo <= 96:
-            return "Niektoré stavy vzniknuté v perinatálnom období (P00-P96)"
-        elif prve_pismeno == 'Q' and 0 <= cislo <= 99:
-            return "Vrodené chyby, deformity a chromozómové abnormality (Q00-Q99)"
-        elif prve_pismeno == 'R' and 0 <= cislo <= 99:
-            return "Príznaky, znaky a abnormálne klinické a laboratórne nálezy nezatriedené inde (R00-R99)"
-        elif prve_pismeno == 'S' and 0 <= cislo <= 99 or prve_pismeno == 'T' and 0 <= cislo <= 98:
-            return "Poranenia, otravy a niektoré iné následky vonkajších príčin (S00-T98)"
-        elif prve_pismeno == 'V' and 0 <= cislo <= 99 or prve_pismeno == 'W' and 0 <= cislo <= 99 or prve_pismeno == 'X' and 0 <= cislo <= 99 or prve_pismeno == 'Y' and 0 <= cislo <= 99:
-            return "Vonkajšie príčiny morbidity a mortality (V01-Y98)"
-        elif prve_pismeno == 'Z' and 0 <= cislo <= 99:
-            return "Faktory ovplyvňujúce zdravotný stav a kontakt so zdravotníckymi službami (Z00-Z99)"
-        else:
-            return "Iné nezatriedené"
-    else:
-        return "Neplatný kód"
+    for sheet_name, df in mkch10_data.items():
+        kod_col = 'Kód diagnózy' if 'Kód diagnózy' in df.columns else 'Kód' if 'Kód' in df.columns else None
+        nazov_col = 'Nazov' if 'Nazov' in df.columns else 'Názov' if 'Názov' in df.columns else None
 
-def analyzuj_diagnozy(df, stlpec_mkch, stlpec_datum):
+        if kod_col and nazov_col:
+            if kod in df[kod_col].values:
+                return df.loc[df[kod_col] == kod, nazov_col].iloc[0]  # Vráti názov
+    return "Neznáma"  # Ak sa kód nenájde v žiadnom hárku
+
+def analyzuj_diagnozy(df, stlpec_mkch, stlpec_datum, mkch10_data):
+    """
+    Analyzuje výskyt diagnóz podľa MKCH-10 kódu a roka vyšetrenia,
+    vracia aj percentuálne zastúpenie a informácie pre zvýraznenie chybných kódov.
+
+    Args:
+        df (pd.DataFrame): DataFrame s dátami pacientov.
+        stlpec_mkch (str): Názov stĺpca s MKCH-10 kódom.
+        stlpec_datum (str): Názov stĺpca s dátumom vyšetrenia.
+        mkch10_data (dict):  Slovník, kde kľúče sú názvy hárkov Excelu
+                             a hodnoty sú DataFrame s dátami MKCH-10.
+
+    Returns:
+        pd.DataFrame: DataFrame s počtom a percentuálnym zastúpením
+                      jednotlivých MKCH-10 kódov pre každý rok vyšetrenia,
+                      a zoznam chybných kódov.
+    """
+
     df_analyza = df.copy()
     df_analyza['Rok_vyšetrenia'] = pd.to_datetime(df_analyza[stlpec_datum], format='%d.%m.%Y %H:%M', errors='coerce').dt.year
-    df_analyza['Kapitola_MKCH10'] = df_analyza[stlpec_mkch].apply(prirad_kapitolu_mkch10)
-    vyskyt_diagnoz = df_analyza.groupby(['Rok_vyšetrenia', 'Kapitola_MKCH10']).size().reset_index(name='Počet')
-    return vyskyt_diagnoz
+    df_analyza['Nazov_MKCH10'] = df_analyza[stlpec_mkch].apply(lambda x: prirad_kapitolu_mkch10(x, mkch10_data))
+
+    # Počítame výskyty
+    vyskyt_diagnoz = df_analyza.groupby(['Rok_vyšetrenia', stlpec_mkch, 'Nazov_MKCH10']).size().reset_index(name='Pocet')
+
+    # Počítame percentá
+    total_vyskytov = len(df_analyza)
+    vyskyt_diagnoz['Percento'] = ((vyskyt_diagnoz['Pocet'] / total_vyskytov) * 100).round(2)
+
+    # Hľadanie chybných kódov
+    platne_kody = set()
+    for sheet_name, sheet_df in mkch10_data.items():
+        kod_col = 'Kód diagnózy' if 'Kód diagnózy' in sheet_df.columns else 'Kód' if 'Kód' in sheet_df.columns else None
+        if kod_col:
+            platne_kody.update(sheet_df[kod_col].astype(str).str.upper().tolist())
+
+    vyskyt_diagnoz['Je_chybny'] = vyskyt_diagnoz[stlpec_mkch].astype(str).str.upper().apply(lambda x: x not in platne_kody)
+    chybne_kody = vyskyt_diagnoz[vyskyt_diagnoz['Je_chybny'] == True][[stlpec_mkch]].drop_duplicates()  # Získame len unikátne chybné kódy
+
+    return {
+        'vyskyt_diagnoz': vyskyt_diagnoz,
+        'celkovy_pocet': total_vyskytov,
+        'chybne_kody': chybne_kody
+    }
 
 def nacitaj_mkch10_ciselnik(cesta_k_suboru, nazvy_harkov):
     try:
