@@ -49,12 +49,6 @@ def server(input, output, session):
              return ui.TagList(
                  ui.h2("Genotypy a predispozície k hemochromatóze"),
                  ui.p("Analýza zastúpenia genotypov a predispozícií k hereditárnej hemochromatóze."),
-                 ui.h3("Percentuálne zastúpenie špecifických genotypov"),
-                 ui.p(f"Percentuálne zastúpenie C282Y heterozygotov: {c282y_heterozygot_percent}%"),
-                 ui.p(f"Percentuálne zastúpenie C282Y/H63D zložených heterozygotov: {compound_heterozygot_h63d_percent}%"),
-                 ui.p(f"Percentuálne zastúpenie C282Y/S65C zložených heterozygotov: {compound_heterozygot_c282y_s65c_percent}% (v dátach 0.0%)"),
-                 ui.p(f"Percentuálne zastúpenie H63D/S65C zložených heterozygotov: {h63d_s65c_compound_heterozygot_percent}% (v dátach 0.0%)"),
-                 ui.p(f"Percentuálne zastúpenie S65C homozygotných mutantov: {s65c_homozygot_mutant_percent}%"),
                  ui.h3("Percentuálne zastúpenie genotypov"),
                  ui.output_table("genotype_distribution_table"),
                  ui.h3("Predispozícia k hereditárnej hemochromatóze"),
@@ -63,10 +57,11 @@ def server(input, output, session):
                  ui.output_table("predisposition_summary_table")
              )
          elif input.page() == "Analýza diagnóz":
-             vyskyt = analyzuj_diagnozy(df, "diagnoza MKCH-10", "validovany vysledok")
+             vyskyt = analyzuj_diagnozy(df, "diagnoza MKCH-10", "validovany vysledok", mkch10_data)
              return ui.TagList(
                  ui.h2("Analýza diagnóz podľa MKCH-10"),
-                 ui.output_table("vyskyt_diagnoz_table"),
+                 ui.output_ui("analyza_diagnoz_ui"), #s podfarbenim ale html
+                 # ui.output_table("vyskyt_diagnoz_table") #bez podfarbenia ale v shiny style
              )
          elif input.page() == "MKCH-10":
             if not mkch10_data:
@@ -97,6 +92,8 @@ def server(input, output, session):
                  ui.h2("Očistený dataset"),
                  ui.output_table("data_table")
          )
+     
+     
 
      @reactive.Effect
      @reactive.event(input.mkch10_hladaj_button)
@@ -342,6 +339,45 @@ def server(input, output, session):
              "Dôvod N/A": r.get("reason_na", "Dostatočné dáta") if r is not None else "Chyba pri výpočte (pravdepodobne nedostatok dát)"
          })
 
+
+     @output
+     @render.ui
+     def analyza_diagnoz_ui():
+        analyza = analyzuj_diagnozy(df, "diagnoza MKCH-10", "validovany vysledok", mkch10_data)
+        vyskyt_diagnoz_df = analyza['vyskyt_diagnoz']
+        celkovy_pocet = analyza['celkovy_pocet']
+        chybne_kody_df = analyza['chybne_kody']
+
+        # Funkcia na generovanie štýlu riadku
+        def get_row_style(row):
+         return 'background-color: lightcoral;' if bool(row.get('Je_chybny', False)) else ''
+
+
+        # Generovanie HTML tabuľky so štýlmi riadkov
+        table_html = "<table>"
+        table_html += "<thead><tr><th>" + "</th><th>".join(vyskyt_diagnoz_df.columns) + "</th></tr></thead>"
+        table_html += "<tbody>"
+        for index, row in vyskyt_diagnoz_df.iterrows():
+            style = get_row_style(row)
+            table_html += f"<tr style='{style}'>"
+            table_html += "<td>" + "</td><td>".join(map(str, row.values)) + "</td>"
+            table_html += "</tr>"
+        table_html += "</tbody></table>"
+
+        return ui.TagList(
+            ui.p(f"Celkový počet záznamov: {celkovy_pocet}"),
+            ui.HTML(table_html),
+            ui.h4("Chybné kódy"),
+            ui.p(", ".join(chybne_kody_df["diagnoza MKCH-10"].tolist()) if not chybne_kody_df.empty else "Žiadne chybné kódy")
+        )
+
+     @output
+     @render.text
+     def chybne_kody_text():
+         analyza = analyzuj_diagnozy(df, "diagnoza MKCH-10", "validovany vysledok", mkch10_data)
+         chybne_kody = analyza['chybne_kody']
+         return f"Chybné kódy: {', '.join(chybne_kody['diagnoza MKCH-10'])}" if not chybne_kody.empty else "Žiadne chybné kódy"
+     
      @output
      @render.table
      def genotype_distribution_table():
@@ -355,11 +391,14 @@ def server(input, output, session):
      @output
      @render.table
      def predisposition_summary_table():
-         return analyze_genotype_distribution(df)["predisposition_table"]
-
+         predisposition_df = analyze_genotype_distribution(df)["predisposition_table"]
+         predisposition_df.loc[predisposition_df["Skupina"] == "Celkový počet pacientov", "Percento (%)"] = ""  # Or you could use None, or a dash "-"
+         return predisposition_df
+     
      @output
      @render.table
      def vyskyt_diagnoz_table():
-         return analyzuj_diagnozy(df, "diagnoza MKCH-10", "validovany vysledok")
+         analyza = analyzuj_diagnozy(df, "diagnoza MKCH-10", "validovany vysledok", mkch10_data)
+         return analyza['vyskyt_diagnoz']
 
 app = App(app_ui, server)
