@@ -4,15 +4,14 @@ from shiny.ui import tags
 import pandas as pd
 from shared import df, mkch10_file_path, nazvy_harkov_mkch10
 from app_ui import app_ui
-from utils import check_hardy_weinberg, analyze_genotype_distribution, analyzuj_diagnozy, prirad_kapitolu_mkch10, nacitaj_mkch10_ciselnik
+from utils import check_hardy_weinberg, analyze_genotype_distribution, analyzuj_diagnozy, prirad_kapitolu_mkch10, nacitaj_mkch10_ciselnik, format_p_value
 
- # Načítame číselník pri spustení aplikácie
 mkch10_data = nacitaj_mkch10_ciselnik(str(mkch10_file_path), nazvy_harkov_mkch10)
 
 def server(input, output, session):
      sheet_names = reactive.Value(list(mkch10_data.keys()) if mkch10_data else [])
      current_sheet_index = reactive.Value(0)
-     filtered_mkch10_data = reactive.Value(None) # Bude obsahovať filtrovaný DataFrame
+     filtered_mkch10_data = reactive.Value(None)
      search_performed = reactive.Value(False)
 
      @output
@@ -77,7 +76,7 @@ def server(input, output, session):
                         ui.div( # Nový div pre tlačidlá
                             ui.input_action_button("mkch10_hladaj_button", "Hľadať", class_="action-button-sm"),
                             ui.input_action_button("mkch10_reset_search", "Zobraziť všetky", class_="action-button-sm"),
-                            class_="horizontal-buttons" # Nová trieda pre štýlovanie tlačidiel
+                            class_="horizontal-buttons"
                         ),
                         class_="vertical-layout align-items-start"
                     ),
@@ -282,8 +281,8 @@ def server(input, output, session):
              "Celkový počet alel": r.get("allele_info", {}).get("total_alleles") if r and r.get("allele_info") is not None else "N/A",
              "Počet normálnych alel": r.get("allele_info", {}).get("normal_alleles") if r and r.get("allele_info") is not None else "N/A",
              "Počet mutovaných alel": r.get("allele_info", {}).get("mutant_alleles") if r and r.get("allele_info") is not None else "N/A",
-             "Frekvencia normálnej alely (p)": f"{r.get('allele_info', {}).get('allele_p', 0):.4f}" if r and r.get("allele_info") is not None else "N/A",
-             "Frekvencia mutovanej alely (q)": f"{r.get('allele_info', {}).get('allele_q', 0):.4f}" if r and r.get("allele_info") is not None else "N/A",
+             "Frekvencia normálnej alely (p)": f"{r.get('allele_info', {}).get('allele_p', 0):.5f}" if r and r.get("allele_info") is not None else "N/A",
+             "Frekvencia mutovanej alely (q)": f"{r.get('allele_info', {}).get('allele_q', 0):.5f}" if r and r.get("allele_info") is not None else "N/A",
              "Dôvod N/A": r.get("reason_na", "Dostatočné dáta") if r is not None else "Chyba pri výpočte (pravdepodobne nedostatok dát)"
          })
 
@@ -314,9 +313,9 @@ def server(input, output, session):
      def chi2_test_table():
          return generate_hw_table(df, lambda r, c: {
              "Mutácia": r.get("Mutácia", c),
-             "Chi-kvadrát test": round(r.get("chi2_results", {}).get("chi2"), 4) if r and r.get("chi2_results") is not None and r.get("chi2_results").get("chi2") is not None else "N/A",
+             "Chi-kvadrát test": round(r.get("chi2_results", {}).get("chi2"), 5) if r and r.get("chi2_results") is not None and r.get("chi2_results").get("chi2") is not None else "N/A",
              "Stupne voľnosti": r.get("chi2_results", {}).get("df") if r and r.get("chi2_results") is not None else "N/A",
-             "p-hodnota": round(r.get("chi2_results", {}).get("p_value"), 4) if r and r.get("chi2_results") is not None and r.get("chi2_results").get("p_value") is not None else "N/A",
+             "p-hodnota": format_p_value(r.get("chi2_results", {}).get("p_value")) if r and r.get("chi2_results") is not None and r.get("chi2_results").get("p_value") is not None else "N/A",
              "Dôvod N/A": r.get("reason_na", "Dostatočné dáta") if r is not None else "Chyba pri výpočte (pravdepodobne nedostatok dát)"
          })
 
@@ -325,8 +324,8 @@ def server(input, output, session):
      def hw_results_table():
          return generate_hw_table(df, lambda r, c: {
              "Mutácia": r.get("Mutácia", c),
-             "Chi-kvadrát test": round(r.get("chi2_results", {}).get("chi2"), 4) if r and r.get("chi2_results") is not None and r.get("chi2_results").get("chi2") is not None else "N/A",
-             "p-hodnota": round(r.get("chi2_results", {}).get("p_value"), 4) if r and r.get("chi2_results") is not None and r.get("chi2_results").get("p_value") is not None else "N/A",
+             "Chi-kvadrát test": round(r.get("chi2_results", {}).get("chi2"), 5) if r and r.get("chi2_results") is not None and r.get("chi2_results").get("chi2") is not None else "N/A",
+             "p-hodnota": format_p_value(r.get("chi2_results", {}).get("p_value")) if r and r.get("chi2_results") is not None and r.get("chi2_results").get("p_value") is not None else "N/A",
              "Výsledok": (
                  "Populácia je v Hardy-Weinbergovej rovnováhe (očakávané frekvencie genotypov zodpovedajú pozorovaným)."
                  if r and r.get("chi2_results") is not None and r.get("chi2_results").get("p_value") is not None and r["chi2_results"]["p_value"] > 0.05
@@ -392,7 +391,7 @@ def server(input, output, session):
      @render.table
      def predisposition_summary_table():
          predisposition_df = analyze_genotype_distribution(df)["predisposition_table"]
-         predisposition_df.loc[predisposition_df["Skupina"] == "Celkový počet pacientov", "Percento (%)"] = ""  # Or you could use None, or a dash "-"
+         predisposition_df.loc[predisposition_df["Skupina"] == "Celkový počet pacientov", "Percento (%)"] = ""
          return predisposition_df
      
      @output

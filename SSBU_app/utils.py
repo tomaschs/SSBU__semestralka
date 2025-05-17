@@ -13,6 +13,17 @@ def get_genotype_counts(df, column):
     total = n_normal + n_heterozygot + n_mutant
     return n_normal, n_heterozygot, n_mutant, total
 
+def format_p_value(p_value, decimal_places=5):
+    if p_value is None:
+        return "N/A"
+    
+    threshold = 10**(-decimal_places)
+    
+    if p_value < threshold:
+        return f"<{threshold:.{decimal_places}f}"
+    else:
+        return f"{p_value:.{decimal_places}f}"
+
 def chi_square_test(observed, expected):
     observed = np.array(observed)
     expected = np.array(expected)
@@ -24,10 +35,10 @@ def chi_square_test(observed, expected):
     num_valid_categories = len(observed_valid)
 
     if num_valid_categories < 2:
-        return 0, 1, 0 # Chi2 = 0, p=1, df=0 if less than 2 valid categories
+        return 0, 1, 0 # Chi2 = 0, p=1, df=0 ak menej ako 2 validne kategorie
 
     chi2_statistic = np.sum((observed_valid - expected_valid)**2 / expected_valid)
-    degrees_of_freedom = 1 # Pre HWE s dvoma alelami sú vždy 1 stupeň voľnosti
+    degrees_of_freedom = 1
 
     p_value = chi2.sf(chi2_statistic, degrees_of_freedom)
 
@@ -162,7 +173,7 @@ def analyze_genotype_distribution(df):
 
     total_carriers = c282y_carriers + h63d_carriers + s65c_carriers
     total_at_risk = n_mutant_c282y + n_mutant_h63d + compound_heterozygotes + compound_c282y_s65c
-    total_non_affected = total_patients - total_carriers - total_at_risk  # Calculate non-affected
+    total_non_affected = total_patients - total_carriers - total_at_risk
     
     risk_data = {
         "Kategória": ["C282Y homozygot", "H63D homozygot", "S65C homozygot",
@@ -179,11 +190,11 @@ def analyze_genotype_distribution(df):
     risk_df["Percento (%)"] = risk_df["Percento (%)"].round(2)
 
     predisposition_data = {
-        "Skupina": ["Prenášači", "Genetická predispozícia", "Nepostihnutí", "Celkový počet pacientov"], # Add "Nepostihnutí"
-        "Počet": [total_carriers, total_at_risk, total_non_affected, total_patients], # Add total_non_affected
+        "Skupina": ["Prenášači", "Genetická predispozícia", "Nepostihnutí", "Celkový počet pacientov"],
+        "Počet": [total_carriers, total_at_risk, total_non_affected, total_patients],
         "Percento (%)": [round(total_carriers / total_patients * 100, 2),
                          round(total_at_risk / total_patients * 100, 2),
-                         round(total_non_affected / total_patients * 100, 2), # Calculate non-affected %
+                         round(total_non_affected / total_patients * 100, 2),
                          100.00]
     }
     predisposition_df = pd.DataFrame(predisposition_data)
@@ -204,7 +215,7 @@ def prirad_kapitolu_mkch10(kod, mkch10_data):
                              a hodnoty sú DataFrame s dátami MKCH-10.
 
     Returns:
-        str: Názov kategórie/podkategórie alebo "Neznáma" ak sa kód nenájde.
+        str: Názov kategórie/podkategórie alebo "Neznáma" ak sa kód nenájde v žiadnom hárku.
     """
     if pd.isna(kod):
         return "Neznáma"
@@ -216,8 +227,8 @@ def prirad_kapitolu_mkch10(kod, mkch10_data):
 
         if kod_col and nazov_col:
             if kod in df[kod_col].values:
-                return df.loc[df[kod_col] == kod, nazov_col].iloc[0]  # Vráti názov
-    return "Neznáma"  # Ak sa kód nenájde v žiadnom hárku
+                return df.loc[df[kod_col] == kod, nazov_col].iloc[0]
+    return "Neznáma"
 
 def analyzuj_diagnozy(df, stlpec_mkch, stlpec_datum, mkch10_data):
     """
@@ -241,14 +252,13 @@ def analyzuj_diagnozy(df, stlpec_mkch, stlpec_datum, mkch10_data):
     df_analyza['Rok_vyšetrenia'] = pd.to_datetime(df_analyza[stlpec_datum], format='%d.%m.%Y %H:%M', errors='coerce').dt.year
     df_analyza['Nazov_MKCH10'] = df_analyza[stlpec_mkch].apply(lambda x: prirad_kapitolu_mkch10(x, mkch10_data))
 
-    # Počítame výskyty
     vyskyt_diagnoz = df_analyza.groupby(['Rok_vyšetrenia', stlpec_mkch, 'Nazov_MKCH10']).size().reset_index(name='Pocet')
 
-    # Počítame percentá
+    # percenta
     total_vyskytov = len(df_analyza)
     vyskyt_diagnoz['Percento'] = ((vyskyt_diagnoz['Pocet'] / total_vyskytov) * 100).round(2)
 
-    # Hľadanie chybných kódov
+    # hladanie chybnych kodov
     platne_kody = set()
     for sheet_name, sheet_df in mkch10_data.items():
         kod_col = 'Kód diagnózy' if 'Kód diagnózy' in sheet_df.columns else 'Kód' if 'Kód' in sheet_df.columns else None
@@ -256,7 +266,7 @@ def analyzuj_diagnozy(df, stlpec_mkch, stlpec_datum, mkch10_data):
             platne_kody.update(sheet_df[kod_col].astype(str).str.upper().tolist())
 
     vyskyt_diagnoz['Je_chybny'] = vyskyt_diagnoz[stlpec_mkch].astype(str).str.upper().apply(lambda x: x not in platne_kody)
-    chybne_kody = vyskyt_diagnoz[vyskyt_diagnoz['Je_chybny'] == True][[stlpec_mkch]].drop_duplicates()  # Získame len unikátne chybné kódy
+    chybne_kody = vyskyt_diagnoz[vyskyt_diagnoz['Je_chybny'] == True][[stlpec_mkch]].drop_duplicates()
 
     return {
         'vyskyt_diagnoz': vyskyt_diagnoz,
@@ -266,7 +276,7 @@ def analyzuj_diagnozy(df, stlpec_mkch, stlpec_datum, mkch10_data):
 
 def nacitaj_mkch10_ciselnik(cesta_k_suboru, nazvy_harkov):
     try:
-        all_sheets_dict = pd.read_excel(cesta_k_suboru, sheet_name=None) # Načíta všetky hárky
+        all_sheets_dict = pd.read_excel(cesta_k_suboru, sheet_name=None)
         logging.info(f"Úspešne načítaných {len(all_sheets_dict)} hárkov z číselníka MKCH-10.")
         return all_sheets_dict
     except FileNotFoundError:
