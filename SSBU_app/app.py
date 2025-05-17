@@ -142,74 +142,67 @@ def server(input, output, session):
         final_html = '<div class="graf-kontajner" >' + ''.join(grafy_html) + '</div>'
         return ui.HTML(final_html)
 
+    from scipy.stats import chi2_contingency
+    import pandas as pd
+    from shiny import ui  # Ak používaš Shiny pre Python
+
     def vykonaj_chi_kvadrat_testy(df, diagnoza=None, vek_od=None, vek_do=None):
         """
         Vykoná Chí-kvadrát testy na zistenie asociácie medzi HFE mutáciami
-        a pohlavím/diagnózou/vekom, používajúc funkciu chi_square_test z utils.py.
-
+        a pohlavím/diagnózou/vekom, používajúc priamo scipy.stats.chi2_contingency.
 
         Args:
             df (pd.DataFrame): DataFrame s dátami pacientov.
             diagnoza (str, voliteľné): Konkrétna diagnóza na testovanie.
-                                       Ak je None alebo prázdny, test sa vynechá.
             vek_od (int, voliteľné): Minimálny vek pre filtrovanie.
             vek_do (int, voliteľné): Maximálny vek pre filtrovanie.
-
 
         Returns:
             ui.TagList: HTML obsah s výsledkami testov.
         """
-
         vysledky = []
         mutacie = ["HFE G845A (C282Y) [HFE]", "HFE C187G (H63D) [HFE]", "HFE A193T (S65C) [HFE]"]
         pecen_kody = ['K76.0', 'K75.9']
 
-        pecen_maska = df["diagnoza MKCH-10"].apply(
-            lambda x: any(kod in str(x) for kod in pecen_kody)
-        )
+        # Vekový filter
+        if vek_od is not None:
+            df = df[df["vek"] >= vek_od]
+        if vek_do is not None:
+            df = df[df["vek"] <= vek_do]
+
+        # Maska pre pečeňové diagnózy
+        pecen_maska = df["diagnoza MKCH-10"].apply(lambda x: any(kod in str(x) for kod in pecen_kody))
 
         for mutacia in mutacie:
             popis = f"{mutacia}"
             podmienky = []
-
             if vek_od is not None:
                 podmienky.append(f"vek ≥ {vek_od}")
             if vek_do is not None:
                 podmienky.append(f"vek ≤ {vek_do}")
-
             if podmienky:
                 popis += " (" + ", ".join(podmienky) + ")"
 
-            # chi-kvadrat: mutacia × pohlavie
+            # Chí-kvadrát: mutácia × pohlavie
             ct_pohlavie = pd.crosstab(df[mutacia], df["pohlavie"])
             if ct_pohlavie.shape[0] > 1 and ct_pohlavie.shape[1] > 1:
-                observed_pohlavie = ct_pohlavie.values
-                expected_pohlavie = chi2_contingency(ct_pohlavie)[3]
-                degrees_of_freedom_pohlavie = (ct_pohlavie.shape[0] - 1) * (ct_pohlavie.shape[1] - 1)
-                chi2, p, _ = chi_square_test(observed_pohlavie.flatten(),
-                                             expected_pohlavie.flatten())
-                vysledky.append(
-                    f"{popis} × pohlavie: χ² = {chi2:.2f}, p = {p:.3f}, df = {degrees_of_freedom_pohlavie}")
+                chi2, p, dof, _ = chi2_contingency(ct_pohlavie)
+                vysledky.append(f"{popis} × pohlavie: χ² = {chi2:.2f}, p = {p:.3f}, df = {dof}")
             else:
                 vysledky.append(f"{popis} × pohlavie: Nedostatok dát pre test.")
 
-            # chi-kvadrat: mutacia × diagnoza
+            # Chí-kvadrát: mutácia × diagnóza
             if diagnoza and diagnoza.strip() != "" and diagnoza != "Všetky":
                 diagnoza_maska = df["diagnoza MKCH-10"].apply(lambda x: diagnoza in str(x))
                 ct_diagnoza = pd.crosstab(df[mutacia], diagnoza_maska)
                 diagnoza_nazov = f"diagnóza '{diagnoza}'"
             else:
                 ct_diagnoza = pd.crosstab(df[mutacia], pecen_maska)
-                diagnoza_nazov = "pečeňová diagnóza ('K76.0', 'K75.9') "
+                diagnoza_nazov = "pečeňová diagnóza ('K76.0', 'K75.9')"
 
             if ct_diagnoza.shape[0] > 1 and ct_diagnoza.shape[1] > 1:
-                observed_diagnoza = ct_diagnoza.values
-                expected_diagnoza = chi2_contingency(ct_diagnoza)[3]
-                degrees_of_freedom_diagnoza = (ct_diagnoza.shape[0] - 1) * (ct_diagnoza.shape[1] - 1)
-                chi2, p, _ = chi_square_test(observed_diagnoza.flatten(),
-                                             expected_diagnoza.flatten())
-                vysledky.append(
-                    f"{popis} × {diagnoza_nazov}: χ² = {chi2:.2f}, p = {p:.3f}, df = {degrees_of_freedom_diagnoza}")
+                chi2, p, dof, _ = chi2_contingency(ct_diagnoza)
+                vysledky.append(f"{popis} × {diagnoza_nazov}: χ² = {chi2:.2f}, p = {p:.3f}, df = {dof}")
             else:
                 vysledky.append(f"{popis} × {diagnoza_nazov}: Nedostatok dát pre test.")
 
