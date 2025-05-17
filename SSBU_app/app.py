@@ -34,6 +34,7 @@ def server(input, output, session):
                  ui.h3("Chi-kvadrát test"),
                  ui.output_table("chi2_test_table"),
                  ui.h3("Výsledky testu Hardy-Weinbergovej rovnováhy"),
+                 ui.output_table("hw_hypothesis_table"),
                  ui.output_table("hw_results_table")
              )
          elif input.page() == "Genotypy a predispozície":
@@ -321,16 +322,29 @@ def server(input, output, session):
 
      @output
      @render.table
+     def hw_hypothesis_table():
+         hypothesis_df = pd.DataFrame([
+             {
+                 "Hypotézy": "H0: Distribúcia HFE genotypov pre mutáciu je v Hardy-Weinbergovej rovnováhe (očakávané frekvencie genotypov zodpovedajú pozorovaným)",
+             },
+             {
+                 "Hypotézy": "H1: Distribúcia HFE genotypov pre mutáciu nie je v Hardy-Weinbergovej rovnováhe (pozorované frekvencie genotypov sa významne líšia od očakávaných)",
+             }
+         ])
+         return hypothesis_df
+
+     @output
+     @render.table
      def hw_results_table():
          return generate_hw_table(df, lambda r, c: {
              "Mutácia": r.get("Mutácia", c),
              "Chi-kvadrát test": round(r.get("chi2_results", {}).get("chi2"), 5) if r and r.get("chi2_results") is not None and r.get("chi2_results").get("chi2") is not None else "N/A",
              "p-hodnota": format_p_value(r.get("chi2_results", {}).get("p_value")) if r and r.get("chi2_results") is not None and r.get("chi2_results").get("p_value") is not None else "N/A",
              "Výsledok": (
-                 "Populácia je v Hardy-Weinbergovej rovnováhe (očakávané frekvencie genotypov zodpovedajú pozorovaným)."
+                 "Na základe chi-kvadrát testu sa nulová hypotéza H0 o Hardy-Weinbergovej rovnováhe nezamieta."
                  if r and r.get("chi2_results") is not None and r.get("chi2_results").get("p_value") is not None and r["chi2_results"]["p_value"] > 0.05
                  else (
-                     "Populácia nie je v Hardy-Weinbergovej rovnováhe (pozorované frekvencie genotypov sa významne líšia od očakávaných)."
+                     "Na základe chi-kvadrát testu sa nulová hypotéza H0 o Hardy-Weinbergovej rovnováhe zamieta a prijíma sa R1 hypotéza."
                      if r and r.get("chi2_results") is not None and r.get("chi2_results").get("p_value") is not None
                      else "N/A"
                  )
