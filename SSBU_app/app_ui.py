@@ -61,6 +61,24 @@ css = ui.tags.style("""
         margin-bottom: 5px;
         cursor: pointer;
     }
+     .graf-kontajner {
+         display: grid;
+         grid-template_columns: repeat(2, 1fr);  /* 2 stĺpce */
+         grid-gap: 20px;                     /* Medzery medzi grafmi */
+     }
+     .mutacia-sekcia {
+         /* Tu už nepotrebujeme šírku, Grid to kontroluje */
+         margin-bottom: 20px;
+         /* display: inline-block;  Odstránené */
+         vertical-align: top;
+     }
+     .graf-obrazok {
+         /* width: 650px;  Odstránené, kontroluje sa v img style */
+         margin: 10px 5px;
+         display: block;
+         max-width: 100%; /* Aby sa obrázky nezobrazovali väčšie ako ich kontajner */
+         height: auto;
+     }
 """)
 
 app_ui = ui.page_fluid(
@@ -70,7 +88,7 @@ app_ui = ui.page_fluid(
             ui.panel_title("SSBU"),
             ui.input_radio_buttons(
                 "page", "Menu",
-                choices=["Úvod", "Data", "Hardy-Weinberg", "Genotypy a predispozície", "Analýza diagnóz", "MKCH-10"], # Pridali sme "Analýza diagnóz"
+                choices=["Úvod", "Data", "Hardy-Weinberg", "Genotypy a predispozície", "Analýza diagnóz", "MKCH-10", "Genotypy, demografia a diagnózy"], # Pridali sme "Analýza diagnóz"
                 selected="Úvod"
             ),
             ui.output_ui("dynamic_content")
