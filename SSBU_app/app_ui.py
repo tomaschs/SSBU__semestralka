@@ -88,7 +88,7 @@ app_ui = ui.page_fluid(
             ui.panel_title("SSBU"),
             ui.input_radio_buttons(
                 "page", "Menu",
-                choices=["Úvod", "Data", "Hardy-Weinberg", "Genotypy a predispozície", "Analýza diagnóz", "MKCH-10", "Genotypy, demografia a diagnózy"], # Pridali sme "Analýza diagnóz"
+                choices=["Úvod", "Data", "Hardy-Weinberg", "Genotypy a predispozície", "Analýza diagnóz", "MKCH-10", "Genotypy, demografia a diagnózy"],
                 selected="Úvod"
             ),
             ui.output_ui("dynamic_content")
