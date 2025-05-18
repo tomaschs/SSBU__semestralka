@@ -16,6 +16,89 @@ from utils import check_hardy_weinberg, analyze_genotype_distribution, analyzuj_
 
 mkch10_data = nacitaj_mkch10_ciselnik(str(mkch10_file_path), nazvy_harkov_mkch10)
 
+uvodny_text = ui.markdown(
+    """
+Vitajte v systéme, ktorý pomáha lekárom a výskumníkom analyzovať genetické dáta pacientov a ich diagnózy.
+
+**Systém obsahuje**:
+
+-   **Data**: Obsahuje načítaný dataset pre potrebnú kontrolu dát.
+-   **Hardy-Weinberg**: Kontroluje, či je rozloženie HFE génov v Hardy-Weinbergovej rovnováhe.
+-   **Genotypy a predispozície**: Zisťuje výskyt hemochromatózy u pacientov.
+-   **Genotypy, demografia a diagnózy** : Skúma, či existuje spojitosť medzi génmi a MKCH diagnózami, pričom zobrazuje dáta o génoch, veku, pohlaví a chorobách v prehľadných grafoch.
+-   **Analýza diagnóz**: Kontroluje, či sú MKCH-10 kódy diagnóz aktuálne a ako sa menili v čase.
+-   **MKCH-10**: Obsahuje aktuálny číselník zo stránok NCZI s možnosťou vyhľadávania údajov.
+    """
+)
+
+analyza_text = ui.markdown(
+    """
+Analýzova MKCH-10 diagnóz a ich vývoj v čase. Pacienti boli rozdelení do skupín podľa typov diagnóz podľa najnovších údajov MKCH-10. 
+
+Atribúty:
+
+* **Rok_vyšetrenia:** Rok (celé číslo), kedy bol pacient diagnostikovaný. Slúži na analýzu vývoja výskytu diagnóz v čase.
+* **diagnoza MKCH-10:** Kód diagnózy podľa systému MKCH-10 (napr. „C50.9“), ktorý zabezpečuje jednotnú klasifikáciu ochorení.
+* **Nazov_MKCH10:** Textový názov diagnózy zodpovedajúci kódu (napr. „Zhubný novotvar prsníka, nešpecifikovaný“), slúžiaci pre lepšiu čitateľnosť.
+* **Pocet:** Počet pacientov s danou diagnózou; umožňuje vyhodnotiť jej frekvenciu.
+* **Percento:** Uvádza podiel pacientov s danou diagnózou v % z celkového počtu, čo pomáha porovnať výskyt medzi diagnózami.
+* **je_chybny:** Označuje, či je kód diagnózy neplatný alebo zastaraný (True/False); slúži na overenie aktuálnosti údajov.
+
+Červenou farbou sú podfarbené zastaralé kódy a vypísané na konci zoznamu.
+    """
+)
+
+dataset_text = ui.markdown(
+    """
+##### Atribúty datasetu
+
+* **id:** Jedinečný identifikátor vzorky.
+* **validovany vysledok:** Dátum validácie výsledku testu.
+* **prijem vzorky:** Dátum odberu a prijatia vzorky.
+* **pohlavie:** Pohlavie pacienta (F/M). Klinicky významný demografický faktor.
+* **vek:** Vek pacienta v čase odberu vzorky. Vek môže ovplyvniť rozvoj symptómov.
+* **diagnoza MKCH-10:** Diagnóza pacienta (MKCH-10). Analýza diagnóz môže odhaliť komplikácie spojené s HFE mutáciami.
+* **HFE C187G (H63D) [HFE]:** Genotyp pre mutáciu C187G (HFE) (normal/heterozygot/mutant).
+* **HFE A193T (S65C) [HFE]:** Genotyp pre mutáciu A193T (HFE) (normal/heterozygot/mutant).
+* **HFE G845A (C282Y) [HFE]:** Genotyp pre mutáciu G845A (HFE) (normal/heterozygot/mutant). """
+)
+
+hw_text = ui.markdown(
+    """
+
+Hardy-Weinbergova rovnováha je základný princíp populacnej genetiky, ktorý popisuje teoretický stav, v ktorom frekvencie alel a genotypov v populácii zostávajú konštantné z generácie na generáciu, ak na populáciu nepôsobia určité evolučné vplyvy.
+
+**Predpoklady Hardy-Weinbergovej rovnováhy:**
+
+Aby bola populácia v H-W rovnováhe, musia byť splnené nasledovné podmienky:
+
+* **Žiadna mutácia:** Nedochádza k vzniku nových alel alebo zmene existujúcich.
+* **Žiadny migračný tok:** Nedochádza k príchodu (imigrácii) alebo odchodu (emigrácii) jedincov z/do populácie.
+* **Náhodné párenie:** Jedinci sa pária náhodne, bez preferencií pre konkrétne genotypy.
+* **Žiadny prirodzený výber:** Všetky genotypy majú rovnakú mieru prežitia a reprodukcie.
+* **Veľká populácia:** Populácia je dostatočne veľká, aby v nej nedochádzalo k významným náhodným zmenám vo frekvenciách alel (genetický drift).
+
+**Matematické vyjadrenie:**
+
+Pre gén s dvoma alelami, ktoré označíme *A* a *a*, platí:
+
+* Frekvencia alely *A* sa označuje ako *p*.
+* Frekvencia alely *a* sa označuje ako *q*.
+* Platí, že *p* + *q* = 1 (súčet frekvencií všetkých alel pre daný gén musí byť 1).
+
+Frekvencie genotypov sa dajú vypočítať pomocou nasledujúcej rovnice:
+
+* Frekvencia genotypu *AA* = *p*<sup>2</sup>
+* Frekvencia genotypu *aa* = *q*<sup>2</sup>
+* Frekvencia genotypu *Aa* = 2*pq*
+
+Súčet frekvencií všetkých genotypov je tiež 1: *p*<sup>2</sup> + 2*pq* + *q*<sup>2</sup> = 1
+
+**Význam v kontexte hemochromatózy:**
+
+V prípade hemochromatózy, dedičného ochorenia spojeného s génom HFE, nám H-W rovnováha pomáha pochopiť, či rozloženie alel a genotypov v populácii pacientov je v súlade s očakávaniami pre náhodnú populáciu.
+ """
+)
 
 def server(input, output, session):
     sheet_names = reactive.Value(list(mkch10_data.keys()) if mkch10_data else [])
@@ -26,6 +109,7 @@ def server(input, output, session):
     diagnozy = sorted(df["diagnoza MKCH-10"].dropna().unique())
     diagnozy.insert(0, "Všetky")
 
+    
     def priprav_data_pre_grafy(df, vek_od=None, vek_do=None, pohlavie=None, diagnoza=None):
         data = df.copy()
         print(f"[DEBUG] Pôvodný počet riadkov: {len(data)}")
@@ -250,23 +334,26 @@ def server(input, output, session):
     def page_ui():
         if input.page() == "Úvod":
             return ui.TagList(
-                ui.p(
-                    "Vitajte v aplikácií, ktorá pomáha lekárom a výskumníkom analyzovať genetické dáta pacientov a ich diagnózy."),
-                ui.p("Kľúčové funkcie:"),
-                ui.p(
-                    "   - Obsahuje očistený dataset : Opravené chyby a nepresnosti v údajoch (napr. chýbajúce hodnoty)."),
-                ui.p(
-                    "   - Analyzuje gény: Kontroluje, či rozloženie HFE génov je v norme (Hardy-Weinbergova rovnováha)."),
-                ui.p(
-                    "   - Určuje predispozície: Zisťuje, koľko pacientov má gény pre hemochromatózu (dedičnú chorobu)."),
-                ui.p("   - Hľadá súvislosti: Skúma, či existuje spojitosť medzi génmi a chorobami, hlavne pečeňovými."),
-                ui.p("   - Vytvára grafy: Zobrazuje dáta o génoch, veku, pohlaví a chorobách v prehľadných grafoch."),
-                ui.p("   - Analyzuje diagnózy: Roztrieďuje diagnózy podľa MKCH-10 a sleduje, ako sa menili v čase."),
-                ui.p("   - Overuje kódy: Kontroluje, či sú MKCH-10 kódy diagnóz správne a aktuálne.")
-            )
+          ui.div(
+            ui.img(
+                src="https://png.pngtree.com/png-vector/20230418/ourmid/pngtree-dna-in-test-tube-icon-for-science-research-vector-png-image_51284582.jpg",
+                alt="An image from the web",
+                width="200px",
+                height="auto",
+                style="display: inline-block; vertical-align: middle;"
+            ),
+            ui.h1(
+                "Systém vyhodnocovania rizika hereditárnej hemochromatózy",
+                style="display: inline-block; vertical-align: middle; font-family: 'Arial', sans-serif;"
+            ),
+        ),
+        uvodny_text
+    )
+            
         elif input.page() == "Hardy-Weinberg":
             return ui.TagList(
                 ui.h2("Hardy-Weinbergova rovnováha"),
+                hw_text,
                 ui.h3("Informácie o alelách a ich frekvencie"),
                 ui.output_table("allele_info_table"),
                 ui.h3("Pozorované počty genotypov v datasete"),
@@ -312,8 +399,10 @@ def server(input, output, session):
             )
         elif input.page() == "Analýza diagnóz":
             vyskyt = analyzuj_diagnozy(df, "diagnoza MKCH-10", "validovany vysledok", mkch10_data)
+
             return ui.TagList(
                 ui.h2("Analýza diagnóz podľa MKCH-10"),
+                analyza_text ,
                 ui.output_ui("analyza_diagnoz_ui"),  # s podfarbenim ale html
                 # ui.output_table("vyskyt_diagnoz_table") #bez podfarbenia ale v shiny style
             )
@@ -325,6 +414,7 @@ def server(input, output, session):
 
             return ui.TagList(
                 ui.h2("MKCH-10 Číselník"),
+                ui.h6("Medzinárodná klasifikácia chorôb a príbuzných zdravotných problémov (MKCH-10) je štandardizovaný systém kódovania diagnóz a iných zdravotných stavov. Je to nástroj vyvinutý Svetovou zdravotníckou organizáciou (WHO) a používa sa na celom svete na rôzne účely, vrátane štatistík, epidemiológie a úhrady zdravotnej starostlivosti."),
                 ui.div(
                     ui.div(
                         ui.input_text("mkch10_hladaj", "Hľadať v kóde alebo názve:"),
@@ -355,7 +445,8 @@ def server(input, output, session):
                 ui.output_ui("chi_kvadrat_vystup")
             )
         return ui.TagList(
-            ui.h2("Očistený dataset"),
+            ui.h2("Načítaný dataset"),
+            dataset_text,
             ui.output_table("data_table")
         )
 

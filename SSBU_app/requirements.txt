@@ -5,6 +5,4 @@ scipy
 Jinja2
 xlrd
 plotnine
-io
-base64
 matplotlib
