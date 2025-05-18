@@ -65,7 +65,7 @@ def server(input, output, session):
         grafy_html = []
         mutacie = ["HFE G845A (C282Y) [HFE]", "HFE C187G (H63D) [HFE]", "HFE A193T (S65C) [HFE]"]
 
-        df_copy = df.copy()
+        df_copy = priprav_data_pre_grafy(df, vek_od=vek_od, vek_do=vek_do, pohlavie=pohlavie, diagnoza=diagnoza)
 
         if diagnoza and diagnoza.strip() != "" and diagnoza != "Všetky":
             df_copy["diagnoza_ano_nie"] = df_copy["diagnoza MKCH-10"].apply(
@@ -146,7 +146,7 @@ def server(input, output, session):
     import pandas as pd
     from shiny import ui  # Ak používaš Shiny pre Python
 
-    def vykonaj_chi_kvadrat_testy(df, diagnoza=None, vek_od=None, vek_do=None):
+    def vykonaj_chi_kvadrat_testy(df, diagnoza=None, vek_od=None, vek_do=None, pohlavie = None):
         """
         Vykoná Chí-kvadrát testy na zistenie asociácie medzi HFE mutáciami
         a pohlavím/diagnózou/vekom, používajúc priamo scipy.stats.chi2_contingency.
@@ -170,6 +170,14 @@ def server(input, output, session):
         if vek_do is not None:
             df = df[df["vek"] <= vek_do]
 
+        pohlavie_filtruje_sa = False
+        if pohlavie and pohlavie != "Všetky":
+            mapovanie = {"Muž": "M", "Žena": "F"}
+            pohlavie_hodnota = mapovanie.get(pohlavie)
+            if pohlavie_hodnota:
+                df = df[df["pohlavie"] == pohlavie_hodnota]
+                pohlavie_filtruje_sa = True
+
         # Maska pre pečeňové diagnózy
         pecen_maska = df["diagnoza MKCH-10"].apply(lambda x: any(kod in str(x) for kod in pecen_kody))
 
@@ -184,12 +192,13 @@ def server(input, output, session):
                 popis += " (" + ", ".join(podmienky) + ")"
 
             # Chí-kvadrát: mutácia × pohlavie
-            ct_pohlavie = pd.crosstab(df[mutacia], df["pohlavie"])
-            if ct_pohlavie.shape[0] > 1 and ct_pohlavie.shape[1] > 1:
-                chi2, p, dof, _ = chi2_contingency(ct_pohlavie)
-                vysledky.append(f"{popis} × pohlavie: χ² = {chi2:.2f}, p = {p:.3f}, df = {dof}")
-            else:
-                vysledky.append(f"{popis} × pohlavie: Nedostatok dát pre test.")
+            if not pohlavie_filtruje_sa:
+                ct_pohlavie = pd.crosstab(df[mutacia], df["pohlavie"])
+                if ct_pohlavie.shape[0] > 1 and ct_pohlavie.shape[1] > 1:
+                    chi2, p, dof, _ = chi2_contingency(ct_pohlavie)
+                    vysledky.append(f"{popis} × pohlavie: χ² = {chi2:.2f}, p = {p:.3f}, df = {dof}")
+                else:
+                    vysledky.append(f"{popis} × pohlavie: Nedostatok dát pre test.")
 
             # Chí-kvadrát: mutácia × diagnóza
             if diagnoza and diagnoza.strip() != "" and diagnoza != "Všetky":
@@ -234,7 +243,7 @@ def server(input, output, session):
     @render.ui
     def chi_kvadrat_vystup():
         data = filtered_data.get()
-        return vykonaj_chi_kvadrat_testy(data, diagnoza=input.diagnoza(), vek_od=input.vek_od(), vek_do=input.vek_do())
+        return vykonaj_chi_kvadrat_testy(data, diagnoza=input.diagnoza(), vek_od=input.vek_od(), vek_do=input.vek_do(), pohlavie=input.pohlavie())
 
     @output
     @render.ui
